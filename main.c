@@ -8,39 +8,38 @@
 
 int main() {
     srand(9);
-
+    /**
+     * maze generetion
+     */
     cell grid[ROWS * COLS];
     GWindow panel = newGWindow(WIDTH, HEIGHT);
-
-    cell *current1 = NULL;
+    cell* current = NULL;
     Stack Generation_phase_visited_cells = newStack();
-    Stack solution_phase_visited_cells = newStack();
-    Stack solution_phase_moves_taken = newStack();
     init_grid(grid);
     for (int i = 0; i < COLS * ROWS; ++i) {
         draw_cell(&grid[i],panel);
     }
-    grid[START].visited = true;
-    current1 = &grid[START];
-    push(Generation_phase_visited_cells, current1);
+    grid[START1].visited = true;
+    current = &grid[START1];
+    push(Generation_phase_visited_cells, current);
     while (!isEmpty(Generation_phase_visited_cells)) {
         int c;
-        if ((c = get_next_unvisited_neighbor(current1, grid)) != -1) {
+        if ((c = get_next_unvisited_neighbor(current, grid)) != -1) {
             // STEP 1 mark as visited
             grid[c].visited = true;
             // push it to the stack
-            push(Generation_phase_visited_cells, current1);
+            push(Generation_phase_visited_cells, current);
             //STEP 3 remove walls
-            remove_walls(current1, &grid[c]);
+            remove_walls(current, &grid[c]);
             // sTEP 4
-            current1 = &grid[c];
+            current = &grid[c];
         } else if (!isEmpty(Generation_phase_visited_cells)) {
-            current1 = pop(Generation_phase_visited_cells);
+            current = pop(Generation_phase_visited_cells);
         }
 
-        draw_current_cell(current1,panel);
+        draw_current_cell(current,panel);
         //pause(2);
-        draw_cell(current1,panel);
+        draw_cell(current,panel);
 
     }
 
@@ -48,14 +47,24 @@ int main() {
         grid[j].visited = false;
     }
 
+    /**
+     * maze solution
+     */
     srand(2);
-    current1 = &grid[START];
+    agent ag1 = {NULL, newStack(),newStack(), 0};
+    agent ag2 = {NULL, newStack(), newStack(), 1};
+    ag1.current = &grid[START1];
+    ag2.current = &grid[START2];
     while (1) {
-        draw_for_solution(current1, panel);
-        current1 = move_agent(current1,grid, solution_phase_visited_cells, solution_phase_moves_taken, panel);
-        if (current1 == NULL)
+        draw_agent(ag1, panel);
+        printf("ag1: ");
+        ag1.current = move_agent(ag1,grid,panel);
+        draw_agent(ag2, panel);
+        printf("ag2: ");
+        ag2.current= move_agent(ag2, grid,panel);
+        if (ag1.current == NULL || ag2.current==NULL)
             break;
-        pause(5);
+        pause(500);
     }
     return 0;
 }
@@ -281,82 +290,92 @@ int is_half_closed(cell *cell1,cell grid[ROWS*COLS]) {
     }
 }
 
-cell *move_agent(cell *cell1, cell grid[ROWS*COLS], Stack movedCells, Stack moves, GWindow panel) {
-    if (get_index(cell1->i, cell1->j, ROWS, COLS) == (END)) {
+cell *move_agent(agent ag, cell grid[ROWS*COLS], GWindow panel) {
+    if (get_index(ag.current->i, ag.current->j, ROWS, COLS) == (END1)) {
         printf("you have reached\n");
         return NULL;
     }
-    cell1->visited = true;
+    bool trapped = false;
+    ag.current->visited = true;
+    ag.current->visited_by_which_agent = ag.id;
     int number_of_opened_walls = 0;
     int move_from = 0;
     for (int i = 0; i < 4; i++) {
-        if (!cell1->walls[i])
+        if (!ag.current->walls[i])
             number_of_opened_walls++;
     }
     if (number_of_opened_walls == 1) {
         ///////////* getting which wall is opened*//////////////////////////////
         for (int i = 0; i < 4; i++) {
-            if (!cell1->walls[i]) {
+            if (!ag.current->walls[i]) {
                 move_from = i;
                 break;
             }
         }
         ////////////////////////////////* setting the move *////////////////////////
         if (move_from == 0) {
-            if (!grid[get_up_index(cell1->i, cell1->j, ROWS, COLS)].visited) {
-                push(movedCells, cell1);
-                push(moves, "top");
-                cell1->walls[move_from] = true;
-                grid[get_up_index(cell1->i, cell1->j, ROWS, COLS)].walls[2] = true;
-                return (&grid[move_up(cell1->i, cell1->j, ROWS, COLS)]);
+            if (!grid[get_up_index(ag.current->i, ag.current->j, ROWS, COLS)].visited) {
+                push(ag.moved_cells, ag.current);
+                push(ag.moves, "top");
+                ag.current->walls[move_from] = true;
+                grid[get_up_index(ag.current->i, ag.current->j, ROWS, COLS)].walls[2] = true;
+                return (&grid[move_up(ag.current->i, ag.current->j, ROWS, COLS)]);
+            }else{
+                trapped = true;
             }
         } else if (move_from == 1) {
-            if (!grid[get_right_index(cell1->i, cell1->j, ROWS, COLS)].visited) {
-                push(movedCells, cell1);
-                push(moves, "right");
-                cell1->walls[move_from] = true;
-                grid[get_right_index(cell1->i, cell1->j, ROWS, COLS)].walls[3] = true;
-                return (&grid[move_right(cell1->i, cell1->j, ROWS, COLS)]);
+            if (!grid[get_right_index(ag.current->i, ag.current->j, ROWS, COLS)].visited) {
+                push(ag.moved_cells, ag.current);
+                push(ag.moves, "right");
+                ag.current->walls[move_from] = true;
+                grid[get_right_index(ag.current->i,ag.current->j, ROWS, COLS)].walls[3] = true;
+                return (&grid[move_right(ag.current->i, ag.current->j, ROWS, COLS)]);
+            } else{
+                trapped = true;
             }
         } else if (move_from == 2) {
-            if (!grid[get_down_index(cell1->i, cell1->j, ROWS, COLS)].visited) {
-                push(movedCells, cell1);
-                push(moves, "down");
-                cell1->walls[move_from] = true;
-                grid[get_down_index(cell1->i, cell1->j, ROWS, COLS)].walls[0] = true;
-                return (&grid[move_down(cell1->i, cell1->j, ROWS, COLS)]);
+            if (!grid[get_down_index(ag.current->i, ag.current->j, ROWS, COLS)].visited) {
+                push(ag.moved_cells, ag.current);
+                push(ag.moves, "down");
+                ag.current->walls[move_from] = true;
+                grid[get_down_index(ag.current->i, ag.current->j, ROWS, COLS)].walls[0] = true;
+                return (&grid[move_down(ag.current->i, ag.current->j, ROWS, COLS)]);
+            } else{
+                trapped = true;
             }
         } else if (move_from == 3) {
-            if (!grid[get_left_index(cell1->i, cell1->j, ROWS, COLS)].visited) {
-                push(movedCells, cell1);
-                push(moves, "left");
-                cell1->walls[move_from] = true;
-                grid[get_left_index(cell1->i, cell1->j, ROWS, COLS)].walls[1] = true;
-                return (&grid[move_left(cell1->i, cell1->j, ROWS, COLS)]);
+            if (!grid[get_left_index(ag.current->i, ag.current->j, ROWS, COLS)].visited) {
+                push(ag.moved_cells, ag.current);
+                push(ag.moves, "left");
+                ag.current->walls[move_from] = true;
+                grid[get_left_index(ag.current->i, ag.current->j, ROWS, COLS)].walls[1] = true;
+                return (&grid[move_left(ag.current->i, ag.current->j, ROWS, COLS)]);
+            } else{
+                trapped = true;
             }
         }
     } else if (number_of_opened_walls == 2) {
-        push(movedCells, cell1);
+        push(ag.moved_cells, ag.current);
         int picked = rand() % 4;
-        while (cell1->walls[picked])
+        while (ag.current->walls[picked])
             picked = rand() % 4;
-        cell1->walls[picked] = true;
-        return cell1;
+        ag.current->walls[picked] = true;
+        return ag.current;
     } else if(number_of_opened_walls==3){
-        push(movedCells, cell1);
+        push(ag.moved_cells, ag.current);
         int picked = rand() % 4;
-        while (cell1->walls[picked])
+        while (ag.current->walls[picked])
             picked = rand() % 4;
-        cell1->walls[picked] = true;
-        return cell1;
+        ag.current->walls[picked] = true;
+        return ag.current;
     }
     else {
-        int halfClosedindex = is_half_closed(cell1, grid);
+        int halfClosedindex = is_half_closed(ag.current, grid);
         if (halfClosedindex != -1) {
-            cell1->walls[halfClosedindex] = false;
+            ag.current->walls[halfClosedindex] = false;
         }
-        if (is_full_closed(cell1, grid)) {
-            string temp = pop(moves);
+        if (is_full_closed(ag.current, grid)) {
+            string temp = pop(ag.moves);
             if (temp == "top") {
                 printf("moving down\n");
             } else if (temp == "right") {
@@ -367,21 +386,21 @@ cell *move_agent(cell *cell1, cell grid[ROWS*COLS], Stack movedCells, Stack move
                 printf("moving right\n");
             }
         }
-        int x = cell1->j * CELL_WIDTH;
-        int y = cell1->i * CELL_WIDTH;
+        int x = ag.current->j * CELL_WIDTH;
+        int y = ag.current->i * CELL_WIDTH;
         GOval tempRect = newGOval(x + (CELL_WIDTH/4.0), y + (CELL_WIDTH/4.0), CELL_WIDTH - (CELL_WIDTH/2), CELL_WIDTH - (CELL_WIDTH/2));
         setFillColor(tempRect, "RED");
         setFilled(tempRect, true);
         add(panel, tempRect);
-        return pop(movedCells);
+        return pop(ag.moved_cells);
     }
 
 }
 
-void draw_for_solution(cell *temp, GWindow panel) {
-    int x = temp->j * CELL_WIDTH;
-    int y = temp->i * CELL_WIDTH;
-    if (!temp->visited) {
+void draw_agent(agent ag, GWindow panel) {
+    int x = ag.current->j * CELL_WIDTH;
+    int y = ag.current->i * CELL_WIDTH;
+    if (!ag.current->visited) {
         GOval tempRect = newGOval(x + (CELL_WIDTH/4.0), y + (CELL_WIDTH/4.0), CELL_WIDTH - (CELL_WIDTH/2), CELL_WIDTH - (CELL_WIDTH/2));
         setFillColor(tempRect, "GREEN");
         setFilled(tempRect, true);
@@ -392,13 +411,13 @@ void draw_for_solution(cell *temp, GWindow panel) {
         setFilled(tempRect, true);
         add(panel, tempRect);
     }
-    if (get_index(temp->i, temp->j, ROWS, COLS) == (END)) {
+    if (get_index(ag.current->i, ag.current->j, ROWS, COLS) == (END1)||get_index(ag.current->i, ag.current->j, ROWS, COLS) == (END2)) {
         GOval tempRect = newGOval(x + (CELL_WIDTH/4.0), y + (CELL_WIDTH/4.0), CELL_WIDTH - (CELL_WIDTH/2), CELL_WIDTH - (CELL_WIDTH/2));
         setFillColor(tempRect, "BLACK");
         setFilled(tempRect, true);
         add(panel, tempRect);
     }
-    if (get_index(temp->i, temp->j, ROWS ,COLS)==START) {
+    if (get_index(ag.current->i, ag.current->j, ROWS ,COLS)==START1 || get_index(ag.current->i, ag.current->j, ROWS ,COLS)==START2) {
         GOval tempRect = newGOval(x + (CELL_WIDTH/4.0), y + (CELL_WIDTH/4.0), CELL_WIDTH - (CELL_WIDTH/2), CELL_WIDTH - (CELL_WIDTH/2));
         setFillColor(tempRect, "WHITE");
         setFilled(tempRect, true);
