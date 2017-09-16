@@ -6,16 +6,65 @@
 
 #include "includ/main.h"
 
-/**
-     * @brief a function for init an array of cells
-     * @param grid[ROW*COLS] array of cells.
-     *
-     */
+int main() {
+    srand(9);
+
+    cell grid[ROWS * COLS];
+    GWindow panel = newGWindow(WIDTH, HEIGHT);
+
+    cell *current1 = NULL;
+    Stack Generation_phase_visited_cells = newStack();
+    Stack solution_phase_visited_cells = newStack();
+    Stack solution_phase_moves_taken = newStack();
+    init_grid(grid);
+    for (int i = 0; i < COLS * ROWS; ++i) {
+        draw_cell(&grid[i],panel);
+    }
+    grid[START].visited = true;
+    current1 = &grid[START];
+    push(Generation_phase_visited_cells, current1);
+    while (!isEmpty(Generation_phase_visited_cells)) {
+        int c;
+        if ((c = get_next_unvisited_neighbor(current1, grid)) != -1) {
+            // STEP 1 mark as visited
+            grid[c].visited = true;
+            // push it to the stack
+            push(Generation_phase_visited_cells, current1);
+            //STEP 3 remove walls
+            remove_walls(current1, &grid[c]);
+            // sTEP 4
+            current1 = &grid[c];
+        } else if (!isEmpty(Generation_phase_visited_cells)) {
+            current1 = pop(Generation_phase_visited_cells);
+        }
+
+        draw_current_cell(current1,panel);
+        //pause(2);
+        draw_cell(current1,panel);
+
+    }
+
+    for (int j = 0; j < ROWS * COLS; ++j) {
+        grid[j].visited = false;
+    }
+
+    srand(2);
+    current1 = &grid[START];
+    while (1) {
+        draw_for_solution(current1, panel);
+        current1 = move_agent(current1,grid, solution_phase_visited_cells, solution_phase_moves_taken, panel);
+        if (current1 == NULL)
+            break;
+        pause(5);
+    }
+    return 0;
+}
+
 void init_grid(cell grid[ROWS * COLS]) {
 
     for (int i = 0; i < ROWS; i++) {
         for (int j = 0; j < COLS; j++) {
-            cell temp = {i, j, {true, true, true, true}, false, false};
+            cell temp = {i, j, {true, true, true, true}, false};
             grid[get_index(i, j, ROWS, COLS)] = temp;
         }
     }
@@ -77,7 +126,7 @@ void draw_current_cell(cell *current, GWindow panel) {
     add(panel, temp);
 }
 
-int get_a_neighbor(cell *cell1,cell grid[COLS*ROWS]) {
+int get_next_unvisited_neighbor(cell *cell1, cell *grid) {
     int picked;
     bool arr[4] = {false, false, false, false};
     int top = get_index(cell1->i - 1, cell1->j,ROWS, COLS);
@@ -109,7 +158,6 @@ int get_a_neighbor(cell *cell1,cell grid[COLS*ROWS]) {
         picked = rand() % 4;
     }
     return arr_values[picked];
-
 }
 
 void remove_walls(cell *current, cell *next) {
@@ -131,8 +179,6 @@ void remove_walls(cell *current, cell *next) {
         next->walls[3] = false;
     }
 }
-
-
 
 int move_up(int i, int j, int rows, int cols) {
     printf("moving top\n");
@@ -352,7 +398,7 @@ void draw_for_solution(cell *temp, GWindow panel) {
         setFilled(tempRect, true);
         add(panel, tempRect);
     }
-    if (temp->start) {
+    if (get_index(temp->i, temp->j, ROWS ,COLS)==START) {
         GOval tempRect = newGOval(x + (CELL_WIDTH/4.0), y + (CELL_WIDTH/4.0), CELL_WIDTH - (CELL_WIDTH/2), CELL_WIDTH - (CELL_WIDTH/2));
         setFillColor(tempRect, "WHITE");
         setFilled(tempRect, true);
@@ -360,57 +406,4 @@ void draw_for_solution(cell *temp, GWindow panel) {
     }
 
 
-}
-
-int main() {
-    srand(9);
-    cell grid[ROWS * COLS];
-    GWindow panel = newGWindow(WIDTH, HEIGHT);
-    cell *current = NULL;
-    Stack Generation_phase_visited_cells = newStack();
-    Stack solution_phase_visited_cells = newStack();
-    Stack solution_phase_moves_taken = newStack();
-    init_grid(grid);
-    for (int i = 0; i < COLS * ROWS; ++i) {
-        draw_cell(&grid[i],panel);
-    }
-    grid[START].visited = true;
-    current = &grid[START];
-    push(Generation_phase_visited_cells, current);
-    while (!isEmpty(Generation_phase_visited_cells)) {
-        int c;
-        if ((c = get_a_neighbor(current,grid)) != -1) {
-            // STEP 1 mark as visited
-            grid[c].visited = true;
-
-            push(Generation_phase_visited_cells, current);
-            //STEP 3 remove walls
-            remove_walls(current, &grid[c]);
-            // sTEP 4
-            current = &grid[c];
-        } else if (!isEmpty(Generation_phase_visited_cells)) {
-            current = pop(Generation_phase_visited_cells);
-        }
-
-        draw_current_cell(current,panel);
-        //pause(2);
-        draw_cell(current,panel);
-
-    }
-
-    for (int j = 0; j < ROWS * COLS; ++j) {
-        grid[j].visited = false;
-    }
-
-    srand(2);
-    current = &grid[START];
-    current->start = true;
-    while (1) {
-        draw_for_solution(current, panel);
-        current = move_agent(current,grid, solution_phase_visited_cells, solution_phase_moves_taken, panel);
-        if (current == NULL)
-            break;
-        pause(2);
-    }
-    return 0;
 }
